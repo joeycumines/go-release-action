@@ -111,6 +111,14 @@ inputs:
     description: 'Build and package multiple binaries together'
     required: false
     default: 'FALSE'
+  upx:
+    description: 'Enable UPX compression for the executable binary'
+    required: false
+    default: 'FALSE'
+  upx_args:
+    description: 'Arguments to pass to UPX compression'
+    required: false
+    default: '--best --lzma'
 
 outputs:
   release_asset_dir:
@@ -147,6 +155,8 @@ runs:
     - ${{ inputs.compress_assets }}
     - ${{ inputs.upload }}
     - ${{ inputs.multi_binaries }}
+    - ${{ inputs.upx }}
+    - ${{ inputs.upx_args }}
 
 branding:
   icon: 'package'

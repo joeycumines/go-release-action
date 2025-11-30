@@ -137,7 +137,7 @@ else
   fi
 fi
 
-# executable compression
+# executable compression (legacy method via executable_compression input)
 if [ ! -z "${INPUT_EXECUTABLE_COMPRESSION}" ]; then
   if [[ "${INPUT_EXECUTABLE_COMPRESSION}" =~ ^upx.* ]]; then
     # start with upx, use upx to compress the executable binary
@@ -146,6 +146,62 @@ if [ ! -z "${INPUT_EXECUTABLE_COMPRESSION}" ]; then
     echo "Unsupport executable compression: ${INPUT_EXECUTABLE_COMPRESSION}!"
     exit 1
   fi
+fi
+
+# UPX compression (new method via upx and upx_args inputs)
+if [ "${INPUT_UPX^^}" == 'TRUE' ]; then
+  echo "::group::UPX Compression"
+  echo "Starting UPX compression..."
+  
+  # Verify UPX is installed
+  if ! command -v upx &> /dev/null; then
+    echo "Error: UPX is not installed but upx input is set to true"
+    exit 1
+  fi
+  
+  if [ "${INPUT_MULTI_BINARIES^^}" == 'TRUE' ]; then
+    # Compress all binaries in the build artifacts folder
+    for binary in ${BUILD_ARTIFACTS_FOLDER}/*; do
+      if [ -f "$binary" ] && [ -x "$binary" ]; then
+        # Get original size
+        ORIGINAL_SIZE=$(stat -c%s "$binary" 2>/dev/null || stat -f%z "$binary" 2>/dev/null)
+        echo "Compressing: $binary (original size: ${ORIGINAL_SIZE} bytes)"
+        
+        # Run UPX compression
+        if ! upx ${INPUT_UPX_ARGS} "$binary"; then
+          echo "Error: UPX compression failed for $binary"
+          exit 1
+        fi
+        
+        # Get compressed size
+        COMPRESSED_SIZE=$(stat -c%s "$binary" 2>/dev/null || stat -f%z "$binary" 2>/dev/null)
+        REDUCTION=$((ORIGINAL_SIZE - COMPRESSED_SIZE))
+        PERCENTAGE=$(awk "BEGIN {printf \"%.1f\", (${REDUCTION}/${ORIGINAL_SIZE})*100}")
+        echo "Compressed: $binary (compressed size: ${COMPRESSED_SIZE} bytes, reduced by ${REDUCTION} bytes, ${PERCENTAGE}% reduction)"
+      fi
+    done
+  else
+    BINARY_PATH="${BUILD_ARTIFACTS_FOLDER}/${BINARY_NAME}${EXT}"
+    
+    # Get original size
+    ORIGINAL_SIZE=$(stat -c%s "$BINARY_PATH" 2>/dev/null || stat -f%z "$BINARY_PATH" 2>/dev/null)
+    echo "Compressing: ${BINARY_PATH} (original size: ${ORIGINAL_SIZE} bytes)"
+    
+    # Run UPX compression
+    if ! upx ${INPUT_UPX_ARGS} "$BINARY_PATH"; then
+      echo "Error: UPX compression failed for ${BINARY_PATH}"
+      exit 1
+    fi
+    
+    # Get compressed size and calculate reduction
+    COMPRESSED_SIZE=$(stat -c%s "$BINARY_PATH" 2>/dev/null || stat -f%z "$BINARY_PATH" 2>/dev/null)
+    REDUCTION=$((ORIGINAL_SIZE - COMPRESSED_SIZE))
+    PERCENTAGE=$(awk "BEGIN {printf \"%.1f\", (${REDUCTION}/${ORIGINAL_SIZE})*100}")
+    echo "Compressed: ${BINARY_PATH} (compressed size: ${COMPRESSED_SIZE} bytes, reduced by ${REDUCTION} bytes, ${PERCENTAGE}% reduction)"
+  fi
+  
+  echo "UPX compression finished."
+  echo "::endgroup::"
 fi
 
 # prepare extra files
