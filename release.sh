@@ -158,13 +158,18 @@ if [ "${INPUT_UPX^^}" == 'TRUE' ]; then
     echo "Error: UPX is not installed but upx input is set to true"
     exit 1
   fi
+
+  # Helper function to get file size (compatible with Linux and macOS)
+  get_file_size() {
+    stat -c%s "$1" 2>/dev/null || stat -f%z "$1" 2>/dev/null
+  }
   
   if [ "${INPUT_MULTI_BINARIES^^}" == 'TRUE' ]; then
     # Compress all binaries in the build artifacts folder
-    for binary in ${BUILD_ARTIFACTS_FOLDER}/*; do
+    for binary in "${BUILD_ARTIFACTS_FOLDER}"/*; do
       if [ -f "$binary" ] && [ -x "$binary" ]; then
         # Get original size
-        ORIGINAL_SIZE=$(stat -c%s "$binary" 2>/dev/null || stat -f%z "$binary" 2>/dev/null)
+        ORIGINAL_SIZE=$(get_file_size "$binary")
         echo "Compressing: $binary (original size: ${ORIGINAL_SIZE} bytes)"
         
         # Run UPX compression
@@ -174,7 +179,7 @@ if [ "${INPUT_UPX^^}" == 'TRUE' ]; then
         fi
         
         # Get compressed size
-        COMPRESSED_SIZE=$(stat -c%s "$binary" 2>/dev/null || stat -f%z "$binary" 2>/dev/null)
+        COMPRESSED_SIZE=$(get_file_size "$binary")
         REDUCTION=$((ORIGINAL_SIZE - COMPRESSED_SIZE))
         PERCENTAGE=$(awk "BEGIN {printf \"%.1f\", (${REDUCTION}/${ORIGINAL_SIZE})*100}")
         echo "Compressed: $binary (compressed size: ${COMPRESSED_SIZE} bytes, reduced by ${REDUCTION} bytes, ${PERCENTAGE}% reduction)"
@@ -184,7 +189,7 @@ if [ "${INPUT_UPX^^}" == 'TRUE' ]; then
     BINARY_PATH="${BUILD_ARTIFACTS_FOLDER}/${BINARY_NAME}${EXT}"
     
     # Get original size
-    ORIGINAL_SIZE=$(stat -c%s "$BINARY_PATH" 2>/dev/null || stat -f%z "$BINARY_PATH" 2>/dev/null)
+    ORIGINAL_SIZE=$(get_file_size "$BINARY_PATH")
     echo "Compressing: ${BINARY_PATH} (original size: ${ORIGINAL_SIZE} bytes)"
     
     # Run UPX compression
@@ -194,7 +199,7 @@ if [ "${INPUT_UPX^^}" == 'TRUE' ]; then
     fi
     
     # Get compressed size and calculate reduction
-    COMPRESSED_SIZE=$(stat -c%s "$BINARY_PATH" 2>/dev/null || stat -f%z "$BINARY_PATH" 2>/dev/null)
+    COMPRESSED_SIZE=$(get_file_size "$BINARY_PATH")
     REDUCTION=$((ORIGINAL_SIZE - COMPRESSED_SIZE))
     PERCENTAGE=$(awk "BEGIN {printf \"%.1f\", (${REDUCTION}/${ORIGINAL_SIZE})*100}")
     echo "Compressed: ${BINARY_PATH} (compressed size: ${COMPRESSED_SIZE} bytes, reduced by ${REDUCTION} bytes, ${PERCENTAGE}% reduction)"
